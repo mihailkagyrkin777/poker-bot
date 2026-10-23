@@ -1830,10 +1830,13 @@ def run_bot():
     bot_app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
-    # Запускаем бота в фоне
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
+    # Запускаем Flask в фоне (для Render health check)
+    flask_thread = threading.Thread(
+        target=lambda: app_flask.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080))),
+        daemon=True
+    )
+    flask_thread.start()
 
-    # Запускаем Flask-сервер для Render
-    port = int(os.environ.get("PORT", 8080))
-    app_flask.run(host="0.0.0.0", port=port)
+    # Запускаем бота в главном потоке (чтобы asyncio работал)
+    print("✅ Запускаем бота...")
+    run_bot()
