@@ -1110,6 +1110,47 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bet = float(data.get("bet_to_call") or 0)
         players = data.get("players", [])
 
+           # === УМНЫЙ СБРОС БОРДА ===
+        old_board = state.get("board", [])
+        old_hero = state.get("hero", [])
+
+        # Проверяем: это новая раздача?
+        is_new_hand = False
+
+        # 1. Если новый борд пустой (префлоп), а старый был не пустой
+        if len(board) == 0 and len(old_board) > 0:
+            is_new_hand = True
+
+        # 2. Если карты на борде полностью другие (не совпадают с продолжением)
+        elif len(board) > 0 and len(old_board) > 0:
+            # Проверяем, является ли новый борд продолжением старого
+            # (первые len(old_board) карт должны совпадать)
+            if board[:len(old_board)] != old_board:
+                is_new_hand = True
+
+        # 3. Если твои карты изменились (новая раздача)
+        if hero != old_hero and len(old_hero) > 0:
+            is_new_hand = True
+
+        if is_new_hand:
+            # Сбрасываем только игровые данные, профили игроков оставляем
+            table_players = state.get("table_players", [])
+            state = {
+                "hero": [], "board": [], "pot": 0, "bet": 0,
+                "range": "QQ+,AK", "extra_ranges": [],
+                "street": "preflop", "waiting_for": None,
+                "last_analysis": None, 
+                "history": state.get("history", []),
+                "bet_size": 0, "bet_fe": 0, "implied_winnings": 0,
+                "table_players": table_players,
+                "last_parsed_players": [],
+                "pending_players": [],
+                "setup_step": None, "setup_count": 0, "setup_index": 0,
+                "editing_player": None,
+            }
+            write_log(f"USER {user_id} NEW HAND detected. Auto-reset.")
+
+        # Обновляем состояние новыми данными
         state["hero"] = hero
         state["board"] = board
         state["pot"] = pot
@@ -1119,21 +1160,6 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         state["implied_winnings"] = 0
         state["last_parsed_players"] = players
         state["pending_players"] = players
-
-        if len(board) == 0:
-            state["street"] = "preflop"
-        elif len(board) == 3:
-            state["street"] = "flop"
-        elif len(board) == 4:
-            state["street"] = "turn"
-        else:
-            state["street"] = "river"
-
-        if len(hero) != 2:
-            await msg.edit_text(
-                "⚠️ Не распознал карты.\nИспользуй /manual"
-            )
-            return
 
         # Считаем анализ (включая текущие диапазоны)
         text, win, best_action, keyboard = calculate_and_format(state)
