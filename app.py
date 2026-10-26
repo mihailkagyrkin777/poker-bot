@@ -614,6 +614,9 @@ def fix_cards(cards):
 # ============ СОСТОЯНИЕ ============
 user_state = {}
 
+# === БАЗА ЗНАНИЙ (КЭШ) ===
+# Хранит результаты Монте-Карло: ключ -> (win, tie, lose)
+simulation_memory = {}
 
 def get_user_state(user_id):
     if user_id not in user_state:
@@ -865,10 +868,32 @@ def calculate_and_format(state):
     bet = state["bet"]
     ranges = get_all_ranges(state)
 
-    if len(ranges) == 1:
-        win, tie, lose = equity_vs_range(hero, board, ranges[0], 3000)
+    # === ПРОВЕРКА ПАМЯТИ (КЭШ) ===
+    cache_key = (
+        tuple(sorted(hero)), 
+        tuple(sorted(board)), 
+        tuple(sorted(ranges))
+    )
+
+    if cache_key in simulation_memory:
+        # Берем из памяти (мгновенно)
+        win, tie, lose = simulation_memory[cache_key]
+        print(f"⚡ CACHE HIT: {cache_key}")
     else:
-        win, tie, lose = equity_vs_ranges_multi(hero, board, ranges, 3000)
+        # Считаем (0.5-1 сек)
+        if len(ranges) == 1:
+            win, tie, lose = equity_vs_range(hero, board, ranges[0], num_simulations=3000)
+        else:
+            win, tie, lose = equity_vs_ranges_multi(hero, board, ranges, num_simulations=3000)
+        
+        # Записываем в память
+        simulation_memory[cache_key] = (win, tie, lose)
+        print(f"💾 CACHE MISS: {cache_key} (saved)")
+        
+        # Ограничиваем память (чтобы не забить оперативку)
+        if len(simulation_memory) > 500:
+            oldest_key = next(iter(simulation_memory))
+            del simulation_memory[oldest_key]
 
     equity = win / 100 + (tie / 100) / 2
     ev_fold = 0
