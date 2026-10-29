@@ -16,9 +16,10 @@ from telegram.ext import (
 )
 
 # ============ НАСТРОЙКИ ============
-TELEGRAM_TOKEN = "8963463637:AAGPOEESZLhzymp2icj42CObJmWvwDE8RO0"
-PROXYAPI_KEY = "sk-R7psprKSZEdyFMl5bG2FwrkDmW0jCAUp"
-YOUR_CHAT_ID = 1233078866
+
+TELEGRAM_TOKEN = os.environ.get("TELEGRAM_TOKEN")
+PROXYAPI_KEY = os.environ.get("PROXYAPI_KEY")
+YOUR_CHAT_ID = int(os.environ.get("YOUR_CHAT_ID", 0))
 
 BASE_URL = "https://api.proxyapi.ru/v1"
 MODEL = "openai/gpt-4o"
