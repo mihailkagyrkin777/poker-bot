@@ -1135,32 +1135,31 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         bet = float(data.get("bet_to_call") or 0)
         players = data.get("players", [])
 
-               # === УМНЫЙ СБРОС БОРДА (мягкая версия) ===
+                       # === УМНЫЙ СБРОС БОРДА (безопасная версия) ===
         old_board = state.get("board", [])
         old_hero = state.get("hero", [])
 
         is_new_hand = False
 
-        # 1. Если новый борд пустой (префлоп), а старый был не пустой — новая раздача
+        # 1. Префлоп: новый борд пустой, а старый был не пустой
         if len(board) == 0 and len(old_board) > 0:
             is_new_hand = True
 
-        # 2. Если карт на борде стало МЕНЬШЕ, чем было (например, был ривер, стал флоп) — новая раздача
+        # 2. Борд сократился (был ривер, стал флоп)
         elif len(board) < len(old_board) and len(board) > 0:
             is_new_hand = True
-        
-        # 3. Если карт на борде столько же или больше, но НИ ОДНА карта не совпадает (с учетом ранга, без масти)
-        elif len(board) >= len(old_board) and len(old_board) > 0:
-            old_ranks = [c[0] for c in old_board]
-            new_ranks = [c[0] for c in board]
-        
-        # Если пересечения по рангам нет вообще
-        if not set(old_ranks).intersection(set(new_ranks)):
-            is_new_hand = True
 
-        # 4. Если твои карты изменились по рангу — новая раздача
-        if len(old_hero) > 0 and hero != old_hero:
-            # Если ранги твоих карт изменились
+        # 3. Борд вырос или такой же, но ранги ВООБЩЕ не пересекаются
+        elif len(board) >= len(old_board) and len(old_board) > 0:
+            old_ranks = [c[0] for c in old_board] if old_board else []
+            new_ranks = [c[0] for c in board] if board else []
+        
+            if old_ranks and new_ranks:
+                if not set(old_ranks).intersection(set(new_ranks)):
+                    is_new_hand = True
+
+        # 4. Твои карты изменились по рангу
+        if len(old_hero) > 0 and len(hero) > 0:
             old_hero_ranks = [c[0] for c in old_hero]
             new_hero_ranks = [c[0] for c in hero]
             if old_hero_ranks != new_hero_ranks:
@@ -1195,7 +1194,7 @@ async def handle_photo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         state["last_parsed_players"] = players
         state["pending_players"] = players
 
-        # Считаем анализ (включая текущие диапазоны)
+            # Считаем анализ (включая текущие диапазоны)
         text, win, best_action, keyboard = calculate_and_format(state)
 
         # Добавляем подтверждение действий
